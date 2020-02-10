@@ -1,0 +1,85 @@
+{
+  "name": "the-pathway",
+  "productName": "the-pathway",
+  "version": "1.0.0",
+  "description": "Desktop cross-platform map router",
+  "repository": "git@github.com:BardinPetr/the-pathway.git",
+  "author": "BardinPetr <bardin.petr@gmail.com>",
+  "license": "GPLv3",
+  "private": true,
+  "main": ".webpack/main",
+  "scripts": {
+    "start": "electron-forge start",
+    "package": "electron-forge package",
+    "make": "electron-forge make",
+    "publish": "electron-forge publish",
+    "lint": "echo \"No linting configured\""
+  },
+  "config": {
+    "forge": {
+      "packagerConfig": {},
+      "makers": [
+        {
+          "name": "@electron-forge/maker-squirrel",
+          "config": {
+            "name": "the_pathway"
+          }
+        },
+        {
+          "name": "@electron-forge/maker-zip",
+          "platforms": [
+            "darwin"
+          ]
+        },
+        {
+          "name": "@electron-forge/maker-deb",
+          "config": {}
+        },
+        {
+          "name": "@electron-forge/maker-rpm",
+          "config": {}
+        }
+      ],
+      "plugins": [
+        [
+          "@electron-forge/plugin-webpack",
+          {
+            "mainConfig": "./webpack.main.config.js",
+            "renderer": {
+              "config": "./webpack.renderer.config.js",
+              "entryPoints": [
+                {
+                  "html": "./src/front/index.html",
+                  "js": "./src/front/renderer.js",
+                  "name": "main_window"
+                }
+              ]
+            }
+          }
+        ]
+      ]
+    }
+  },
+  "devDependencies": {
+    "@electron-forge/cli": "6.0.0-beta.49",
+    "@electron-forge/maker-deb": "6.0.0-beta.49",
+    "@electron-forge/maker-rpm": "6.0.0-beta.49",
+    "@electron-forge/maker-squirrel": "6.0.0-beta.49",
+    "@electron-forge/maker-zip": "6.0.0-beta.49",
+    "@electron-forge/plugin-webpack": "6.0.0-beta.49",
+    "@marshallofsound/webpack-asset-relocator-loader": "^0.5.0",
+    "css-loader": "^3.0.0",
+    "electron": "8.0.0",
+    "node-loader": "^0.6.0",
+    "nodemon": "^2.0.2",
+    "style-loader": "^0.23.1"
+  },
+  "dependencies": {
+    "axios": "^0.19.2",
+    "chalk": "^3.0.0",
+    "electron-squirrel-startup": "^1.0.0",
+    "env-paths": "^2.2.0",
+    "nedb": "^1.8.0",
+    "osm-read": "^0.7.0"
+  }
+}
