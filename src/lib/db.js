@@ -1,5 +1,5 @@
 const storePath = require('env-paths')('thepathway').data,
-  Datastore = require('nedb'),
+  Datastore = require('nedb-promises'),
   path = require('path')
 
 const routesDB = new Datastore({
@@ -16,39 +16,29 @@ const miscDB = new Datastore({
   autoload: true
 });
 
-const upadteRoute = (node, cb) => routesDB.update({
-  id: node[0].id
-}, {
-  $push: {
-    adj: node[1].id
-  }
-}, cb);
+miscDB.count({
+  id: "tiles_downloaded"
+}).then(x => x == 0 && miscDB.insert({
+  id: "tiles_downloaded",
+  tiles: []
+}))
 
 module.exports = {
-  insertRoutes: (x, reverible) => Promise.all(x.map(node => new Promise((resolvedb, rejectdb) =>
-    upadteRoute(node, () => reverible && upadteRoute(node.reverse(), err => err ? rejectdb(err) : resolvedb()) || resolvedb())))),
+  insertRoutes: x => Promise.all(Object.values(x).map(r => routesDB.insert(r).catch(() => {}))),
 
-  updateRoutes: x => ,
-
-  getAdjacent: id => new Promise((resolve, reject) => routesDB.findOne({
+  getNode: id => routesDB.findOne({
     id
-  }, (err, data) => err ? reject(err) : resolve(data.adj))),
+  }),
+  getAdjacent: async id => (await module.exports.getNode(id)).adj,
 
-  getNode: async id => new Promise((resolve, reject) => routesDB.findOne({
-    id
-  }, (err, data) => err ? reject(err) : resolve({
-    id: data.id,
-    geo: data.geo
-  }))),
-
-  isTileDownloaded: async id => new Promise((resolve, reject) => miscDB.findOne({
+  isTileDownloaded: async id => (await miscDB.findOne({
     id: "tiles_downloaded"
-  }, (err, data) => err ? reject(err) : resolve(data && data.tiles.includes(id)))),
-  markTileDownloaded: async x => new Promise((resolve, reject) => miscDB.update({
+  })).tiles.includes(id),
+  markTileDownloaded: x => miscDB.update({
     id: "tiles_downloaded"
   }, {
-    $push: {
+    $addToSet: {
       tiles: x
     }
-  }, err => err ? reject(err) : resolve())),
+  })
 }
