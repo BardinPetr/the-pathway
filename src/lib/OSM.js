@@ -9,9 +9,7 @@ const log = console.log
 
 const downloadTempFile = url => {
   log(c `{green.dim Downloading started {italic ${url}} }`)
-  return Promise.resolve('/tmp/thepathway.tile.6776.osm')
   let p = `/tmp/thepathway.tile.${Math.round(Math.random() * 10000)}.osm`
-  // console.log(p)
   return axios.get(url).then(response => new Promise((resolve, reject) => {
     fs.writeFileSync(p, response.data)
     resolve(p)
@@ -21,11 +19,10 @@ const downloadTempFile = url => {
 const loadTile = async (lat, lon) => {
   let [x, y] = util.coords2tile(lat, lon, util.baseZoom)
   let id = `${x}.${y}.${util.baseZoom}`
-  let url = `http://api.openstreetmap.org/api/0.6/map?bbox=${util.tileEdges(x, y, util.baseZoom).join(',')}`
   let timeStart = new Date().getTime()
   if (!(await db.isTileDownloaded(id))) {
-    log(c `{green.dim Processing tile {bold ID${id}} started --- {italic center at ${lat} ${lon}}}`)
-    return downloadTempFile(url)
+    log(c `{green.dim Processing tile {bold ID${id}} started}`)
+    return downloadTempFile(util.tileURL(x, y))
       .then(tmpPath => (new Promise((resolve, reject) => {
         log(c `{green Download tile {bold ID${id}} finished}`)
         let res = {}
@@ -40,7 +37,10 @@ const loadTile = async (lat, lon) => {
           node: function (x) {
             res[x.id] = {
               id: x.id,
-              geo: [x.lat, x.lon],
+              geo: {
+                lat: x.lat,
+                lon: x.lon
+              },
               adj: []
             }
           },
@@ -65,8 +65,48 @@ const loadTile = async (lat, lon) => {
   }
 }
 
-(async () => {
-  // console.log(util.tileEdges(...util.coords2tile(55.558359, 37.499271, 15), 15))
-  // await loadTile(55.574354, 37.429566)
-  // log(await db.isTileDownloaded("19792.10276.15"))
-})()
+const preloadArea = async (start, end) => {
+  let timeStart = new Date().getTime()
+  let d = Math.ceil(util.dist(start, end) / 0.5)
+  let dlat = (start[0] - end[0]) / d,
+    dlon = (start[1] - end[1]) / d
+  let proms = []
+  log(c `{green.dim Starting preloading {reset ${d}} tiles}`)
+  for (let i = 0; i < d; i++) {
+    proms.push(loadTile(...start))
+    start[0] += dlat
+    start[1] += dlon
+  }
+  await Promise.all(proms)
+  log(c `{magenta Preloading tiles finished --- Took ${new Date().getTime() - timeStart}ms}`)
+}
+
+module.exports = {
+  preloadArea,
+  loadTile
+}
+
+// (async () => {
+// console.log(util.tileEdges(...util.coords2tile(55.558359, 37.499271, 15), 15))
+// await loadTile(55.557536, 37.422674)
+// log(await db.isTileDownloaded("19792.10276.15"))
+
+// setTimeout(async () => {
+// let timeStart = new Date().getTime()
+// await db.getAdjacent("6255798901")
+// log(await db.findNearest(55.557536, 37.422674))
+// await db.getAdjacent("6187570782")
+// await db.getAdjacent("6187571470")
+// await db.getAdjacent("6255798923")
+// const cache = await db.getAllNodes()
+// log(util.coords2tile(55.557587, 37.422576, 15))
+// await preloadArea([55.557587, 37.422576], [55.558175, 37.561866])
+
+// log(c `{magenta ${new Date().getTime() - timeStart}ms}`)
+// timeStart = new Date().getTime()
+
+// cache.sort((a, b) => util.dist(55.557536, 37.422674, a.geo.lat, a.geo.lon) - util.dist(55.557536, 37.422674, b.geo.lat, b.geo.lon))[0]
+
+// log(c `{magenta ${new Date().getTime() - timeStart}ms}`)
+// }, 5000)
+// })()
