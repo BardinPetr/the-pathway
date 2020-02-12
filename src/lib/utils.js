@@ -13,6 +13,12 @@ module.exports = {
   m2dlat: x => x / 110574,
   m2dlon: (x, lat) => x / (111320 * Math.cos(rad(lat))),
 
+  a2o: x => ({
+    lat: x[0],
+    lon: x[1]
+  }),
+  o2a: x => [x.lat, x.lon],
+
   dist: (a, b) => {
     var dLat = rad(b[0] - a[0]);
     var dLon = rad(b[1] - a[1]);

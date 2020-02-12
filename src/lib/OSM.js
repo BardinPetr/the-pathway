@@ -16,8 +16,7 @@ const downloadTempFile = url => {
   }))
 }
 
-const loadTile = async (lat, lon) => {
-  let [x, y] = util.coords2tile(lat, lon, util.baseZoom)
+const loadTileRel = async (x, y) => {
   let id = `${x}.${y}.${util.baseZoom}`
   let timeStart = new Date().getTime()
   if (!(await db.isTileDownloaded(id))) {
@@ -25,7 +24,8 @@ const loadTile = async (lat, lon) => {
     return downloadTempFile(util.tileURL(x, y))
       .then(tmpPath => (new Promise((resolve, reject) => {
         log(c `{green Download tile {bold ID${id}} finished}`)
-        let res = {}
+        let res = {},
+          nodes = {}
         parse({
           filePath: tmpPath,
           error: reject,
@@ -35,7 +35,7 @@ const loadTile = async (lat, lon) => {
             resolve(res)
           },
           node: function (x) {
-            res[x.id] = {
+            nodes[x.id] = {
               id: x.id,
               geo: {
                 lat: x.lat,
@@ -45,11 +45,18 @@ const loadTile = async (lat, lon) => {
             }
           },
           way: function (v) {
-            if (v.tags.highway && util.carAvailableTypes.includes(v.tags.highway.replace('_link', ''))) return
-            util.sliding_window(v.nodeRefs, 2).map(w => {
-              res[w[0]].adj.push(w[1])
-              if (v.tags.oneway === 'yes') res[w[1]].adj.push(w[0])
-            })
+            if (v.tags.highway && util.carAvailableTypes.includes(v.tags.highway.replace('_link', ''))) {
+              util.sliding_window(v.nodeRefs, 2).map(w => {
+                if (!res[w[0]]) res[w[0]] = nodes[w[0]]
+                res[w[0]].adj.push(w[1])
+                if (v.tags.oneway === 'yes') {
+                  if (!res[w[1]]) res[w[1]] = nodes[w[1]]
+                  res[w[1]].adj.push(w[0])
+                }
+              })
+            } else {
+              v.nodeRefs.map(w => delete res[w])
+            }
           },
         })
       })))
@@ -62,32 +69,56 @@ const loadTile = async (lat, lon) => {
       })
   } else {
     log(c `{yellow.dim Already processed tile {bold ID${id}}}`)
+    return Promise.resolve()
   }
 }
 
+const loadTile = async (lat, lon) => {
+  let [x, y] = util.coords2tile(lat, lon, util.baseZoom)
+  await loadTileRel(x, y)
+}
+
+const dirs = [
+  [1, 1],
+  [-1, -1],
+  [1, -1],
+  [-1, 1],
+  [0, 1],
+  [0, -1],
+  [-1, 0],
+  [1, 0]
+]
 const preloadArea = async (start, end) => {
   let timeStart = new Date().getTime()
   let d = Math.ceil(util.dist(start, end) / 0.5)
   let dlat = (start[0] - end[0]) / d,
     dlon = (start[1] - end[1]) / d
   let proms = []
-  log(c `{green.dim Starting preloading {reset ${d}} tiles}`)
+  log(c `{green.dim Starting preloading {reset ${d + 16}} tiles}`)
+
   for (let i = 0; i < d; i++) {
-    proms.push(loadTile(...start))
+    proms.push(async () => await loadTile(...start))
     start[0] += dlat
     start[1] += dlon
   }
+
+  let [x0, y0] = util.coords2tile(...start, util.baseZoom)
+  let [x1, y1] = util.coords2tile(...end, util.baseZoom)
+  proms.push(...dirs.map(async dir => await loadTileRel(x0 + dir[0], y0 + dir[1])))
+  proms.push(...dirs.map(async dir => await loadTileRel(x1 + dir[0], y1 + dir[1])))
+
   await Promise.all(proms)
   log(c `{magenta Preloading tiles finished --- Took ${new Date().getTime() - timeStart}ms}`)
 }
 
 module.exports = {
   preloadArea,
+  loadTileRel,
   loadTile
 }
 
 // (async () => {
-// console.log(util.tileEdges(...util.coords2tile(55.558359, 37.499271, 15), 15))
+// console.log(util.tileEdges(...util.coords2tile(55.557587, 37.422576, 15), 15))
 // await loadTile(55.557536, 37.422674)
 // log(await db.isTileDownloaded("19792.10276.15"))
 

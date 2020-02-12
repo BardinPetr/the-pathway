@@ -33,19 +33,25 @@ const getNode = id => routesDB.findOne({
   id
 })
 
-const getNodesInArea = (lat1, lon1, lat2, lon2) => routesDB.find({
+const getNodesInArea = (a, b) => routesDB.find({
   "geo.lat": {
-    $gt: Math.min(lat1, lat2),
-    $lt: Math.max(lat1, lat2),
+    $gt: Math.min(a[0], b[0]),
+    $lt: Math.max(a[0], b[0]),
   },
   "geo.lon": {
-    $gt: Math.min(lon1, lon2),
-    $lt: Math.max(lon1, lon2),
+    $gt: Math.min(a[1], b[1]),
+    $lt: Math.max(a[1], b[1]),
   },
   $not: {
     "adj": {
       $size: 0
     }
+  }
+})
+
+const getNodesInRadius = (x, r) => routesDB.find({
+  $where: function () {
+    return utils.dist(x, utils.o2a(this.geo)) <= r
   }
 })
 
@@ -72,8 +78,14 @@ const markTileDownloaded = x => miscDB.update({
 })
 
 const nearestNode = async (lat, lon) => {
-  let variants = await getNodesInArea(...utils.tileEdges(...utils.coords2tile(lat, lon, 20), 20));
+  // console.log(lat, lon);
+  let variants = (await getAllNodes()) //(await getNodesInArea(...utils.tileEdges(...utils.coords2tile(lat, lon, 15), 15)))
+  // .map(x => ({
+  //   ...x,
+  //   dist: utils.dist([lat, lon], [x.geo.lat, x.geo.lon])
+  // }))
   return variants.sort((a, b) => utils.dist([lat, lon], [a.geo.lat, a.geo.lon]) - utils.dist([lat, lon], [b.geo.lat, b.geo.lon]))[0]
+  // return variants.sort((a, b) => a.dist - b.dist)[0]
 }
 
 module.exports = {
@@ -85,5 +97,6 @@ module.exports = {
   getAdjacent,
   isTileDownloaded,
   markTileDownloaded,
-  insertRoutes
+  insertRoutes,
+  getNodesInRadius
 }
