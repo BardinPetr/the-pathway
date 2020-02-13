@@ -12,26 +12,29 @@ const PriorityQueue = require('js-priority-queue'),
 const log = console.log
 
 module.exports.Router = class {
-  constructor(callback) {
+  rerouteRetries = 0
+
+  constructor(start, end, callback) {
     this.callback = callback || (() => {})
+    this.xstart = start
+    this.xend = end
   }
 
-  async prepare(start, end) {
-    this.start = start
-    this.end = end
-
-    log(c `{cyan.bold Started routing preparation from {green ${this.start.join(' ')}} to {green ${this.end.join(' ')}}}`)
+  async prepare() {
+    log(c `{cyan.bold Started routing preparation from {green ${this.xstart.join(' ')}} to {green ${this.xend.join(' ')}}}`)
     this.callback({
       type: 0
     })
 
-    await osm.preloadArea([...this.start], [...this.end])
+    await osm.preloadArea([...this.xstart], [...this.xend])
 
     log(c `{green.bold Tile preloading finished}`)
 
-    this.start = await db.nearestNode(...this.start)
-    this.end = await db.nearestNode(...this.end)
+    this.start = (await db.nearestNodes(...this.xstart))[this.rerouteRetries]
+    this.end = await db.nearestNode(...this.xend)
 
+    log(o2a(this.start.geo))
+    log(o2a(this.end.geo))
     if (!this.start || !this.end) return this.callback({
       type: -1,
       msg: "Could't find requested nodes"
@@ -54,6 +57,8 @@ module.exports.Router = class {
     this.parents[this.start.id] = undefined
     this.costs = {}
     this.costs[this.start.id] = 0
+
+    return await this.route()
   }
 
   async route() {
@@ -91,19 +96,23 @@ module.exports.Router = class {
         }
       }))
     }
-    log(nearestEndNode)
+    // log(nearestEndNode.dist)
+    this.qres.push(nearestEndNode)
     log(c `{magenta.bold Routing finished. Generating path}`)
     if (this.end.id in this.parents) {
       log(c `{green.bold Successfully found end node}`)
       return this.restorePath(this.end)
-    } else if (nearestEndNode.dist < 0.03) {
+    } else if (nearestEndNode.dist < 0.1) {
       log(c `{yellow.bold End node not found, selecting nearest - {red ${Math.round(nearestEndNode.dist*1000)}m}}`)
       return this.restorePath(nearestEndNode)
     } else {
+      if (++this.rerouteRetries < 100) return this.prepare()
       log(c `{red.bold Route not found}`)
       return [];
     }
   }
+
+  qres = []
 
   restorePath(end, clean = true) {
     let res = [],
@@ -128,16 +137,19 @@ setTimeout(async () => {
 
   let timeStart = new Date().getTime()
 
-  let q = new module.exports.Router()
+  let q = new module.exports.Router([55.760358, 37.621166], [55.761806, 37.617456])
 
   await db.getAllNodes()
 
   // log(...tileEdges(...coords2tile(55.560395, 37.414888, 15), 15))
 
-  await q.prepare([55.557536, 37.422674], [55.560395, 37.414888])
-  let res = await q.route()
+  let res = await q.prepare()
 
   log(res.map(x => `${x[0]},${x[1]}`).join('\n'))
+
+  // log(q.qres.sort(function (a, b) {
+  //   b.dist - a.dist
+  // })[q.qres.length - 1])
 
   log(c `{magenta ${new Date().getTime() - timeStart}ms}`)
 

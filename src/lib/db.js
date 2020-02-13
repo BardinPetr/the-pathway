@@ -77,19 +77,16 @@ const markTileDownloaded = x => miscDB.update({
   }
 })
 
-const nearestNode = async (lat, lon) => {
-  // console.log(lat, lon);
-  let variants = (await getAllNodes()) //(await getNodesInArea(...utils.tileEdges(...utils.coords2tile(lat, lon, 15), 15)))
-  // .map(x => ({
-  //   ...x,
-  //   dist: utils.dist([lat, lon], [x.geo.lat, x.geo.lon])
-  // }))
-  return variants.sort((a, b) => utils.dist([lat, lon], [a.geo.lat, a.geo.lon]) - utils.dist([lat, lon], [b.geo.lat, b.geo.lon]))[0]
-  // return variants.sort((a, b) => a.dist - b.dist)[0]
+const nearestNodes = async (lat, lon) => {
+  let variants = (await getNodesInRadius([lat, lon], 1))
+  return variants.sort((a, b) => utils.dist([lat, lon], [a.geo.lat, a.geo.lon]) - utils.dist([lat, lon], [b.geo.lat, b.geo.lon]))
 }
+
+const nearestNode = async (lat, lon) => (await nearestNodes(lat, lon))[0]
 
 module.exports = {
   nearestNode,
+  nearestNodes,
   getAdjacent,
   getAllNodes,
   getNode,
