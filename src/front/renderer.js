@@ -2,80 +2,82 @@
 // ipcRenderer
 // } from 'electron'
 // import 'index.css'
-
 const {
   ipcRenderer,
   remote
 } = require('electron')
 
-mapboxgl.accessToken = remote.app.MAPBOX_TOKEN
+var map, control, requestCoords = [null, null]
 
-const map = new mapboxgl.Map({
-  container: 'map',
-  style: 'mapbox://styles/mapbox/streets-v11',
-  center: [37.622504, 55.753215],
-  zoom: 15
-});
-map.on('click', addMarker);
+ymaps.ready(() => {
+  map = new ymaps.Map('map', {
+    center: [55.76, 37.64],
+    zoom: 14,
+    controls: ["routePanelControl"]
+  })
 
+  control = map.controls.get('routePanelControl')
 
+  control.routePanel.state.set({
+    type: 'car',
+    fromEnabled: true,
+    toEnabled: true
+  })
 
-var geocoderA = new MapboxGeocoder({
-  accessToken: mapboxgl.accessToken,
-  language: 'ru-RU',
-  mapboxgl: mapboxgl
-});
+  control.routePanel.options.set({
+    allowSwitch: false,
+    reverseGeocoding: true,
+    types: {
+      car: true
+    }
+  })
 
-var geocoderB = new MapboxGeocoder({
-  accessToken: mapboxgl.accessToken,
-  language: 'ru-RU',
-  mapboxgl: mapboxgl
-});
-
-// map.addControl(geocoderA);
-// map.addControl(geocoderB);
-
-
-
-function addRoute(coords) {
-  if (map.getSource('route')) {
-    map.removeLayer('route')
-    map.removeSource('route')
-  } else {
-    map.addLayer({
-      id: "route",
-      type: "line",
-      source: {
-        type: "geojson",
-        data: {
-          type: "Feature",
-          properties: {},
-          geometry: {
-            type: "LineString",
-            coordinates: coords
-          }
-        }
-      },
-      layout: {
-        "line-join": "round",
-        "line-cap": "round"
-      },
-      paint: {
-        "line-color": "#9818d6",
-        "line-width": 8,
-        "line-opacity": 0.8
+  control.routePanel.getRouteAsync().then(multiRoute => {
+    multiRoute.options.set({
+      routeStrokeColor: "#00000000",
+      routeActiveStrokeColor: "#00000000"
+    })
+    multiRoute.model.events.add('requestsuccess', function () {
+      var activeRoute = multiRoute.getActiveRoute()
+      if (activeRoute) {
+        var cur = 0
+        multiRoute.getWayPoints().each(x => requestCoords[cur++] = x.geometry._coordinates)
       }
-    });
-  };
-}
+    })
+  })
+
+
+  var routeButton = new ymaps.control.Button({
+    data: {
+      content: "Проложить маршрут",
+      title: "Проложить маршрут"
+    },
+    options: {
+      selectOnClick: false,
+      maxWidth: 160
+    }
+  })
+  routeButton.events.add('click', () => {
+    console.log(requestCoords);
+    if (requestCoords[0] && requestCoords[1]) {
+      ipcRenderer.send('route:request', requestCoords)
+    } else {
+      alert('Выберите точки начала и назначения')
+    }
+  })
+  map.controls.add(routeButton)
+})
+
 
 ipcRenderer.on('route:result', (event, res) => {
   console.log(res)
-  res = res.map(x => x.reverse())
-  addRoute(res)
-  map.flyTo({
-    center: res.reduce((prev, cur) => [prev[0] + cur[0], prev[1] + cur[1]], [0, 0]).map(x => x / res.length)
-  })
+  map.geoObjects
+    .removeAll()
+    .add(new ymaps.Polyline(res, {}, {
+      strokeColor: "#3386c0",
+      strokeWidth: 5,
+      strokeOpacity: 0.5
+    }))
 })
 
 ipcRenderer.on('route:update', (event, res) => {
@@ -85,10 +87,3 @@ ipcRenderer.on('route:update', (event, res) => {
 ipcRenderer.on('route:failed', (event, res) => {
   console.log(res)
 })
-
-setTimeout(() => {
-  ipcRenderer.send('route:request', [
-    [55.760358, 37.621166],
-    [55.761806, 37.617456]
-  ])
-}, 3000);

@@ -1,2 +1,2 @@
-module.exports.c = new(require('chalk').Instance)()
+module.exports.c = require('chalk')
 module.exports.log = process.env.LOGGING ? console.log : () => {}

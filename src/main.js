@@ -26,20 +26,21 @@ function createWindow() {
     }
   })
 
-  mainWindow.loadFile('front/index.html')
+  mainWindow.loadFile(`${__dirname.replace('src', '')}src/front/index.html`)
 
   mainWindow.webContents.openDevTools()
 
   mainWindow.on('ready-to-show', () => {
     mainWindow.show()
-    // mainWindow.maximize()
+    mainWindow.maximize()
     setTimeout(() => mainWindow.minimize(), 500)
 
   });
   mainWindow.on('closed', () => mainWindow = null)
 
   ipcMain.on('route:request', (event, data) => {
-    log(c `{yellow.bold Got route:request for ${data}}`)
+    log(data)
+    log(c `{yellow.bold Got route:request for }`)
     let router = new Router(...data, x => event.reply('route:update', x))
     router.run().then(res => event.reply('route:result', res)).catch(x => event.reply('route:failed', x))
   })
