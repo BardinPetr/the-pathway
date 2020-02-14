@@ -1,10 +1,7 @@
 const storePath = require('env-paths')('thepathway').data,
   Datastore = require('nedb-promises'),
   utils = require('./utils.js'),
-  path = require('path'),
-  c = require('chalk')
-
-const log = console.log
+  path = require('path')
 
 const routesDB = new Datastore({
   filename: path.join(storePath, 'thepathway', 'routes.db'),

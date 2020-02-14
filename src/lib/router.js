@@ -7,12 +7,15 @@ const PriorityQueue = require('js-priority-queue'),
   } = require('./utils.js'),
   osm = require('./OSM.js'),
   db = require('./db.js'),
-  c = require('chalk')
+  {
+    log,
+    c
+  } = require('./log')
 
-const log = console.log
 
 module.exports.Router = class {
   rerouteRetries = 0
+  qres = []
 
   constructor(start, end, callback) {
     this.callback = callback || (() => {})
@@ -20,9 +23,9 @@ module.exports.Router = class {
     this.xend = end
   }
 
-  async prepare() {
-    log(c `{cyan.bold Started routing preparation from {green ${this.xstart.join(' ')}} to {green ${this.xend.join(' ')}}}`)
-    this.callback({
+  async run() {
+    log(c `{cyan.bold Started routing preparation from {green ${this.xstart.join(' ')}} to {green ${this.xend.join(' ')}}}`);
+    !this.rerouteRetries && this.callback({
       type: 0
     })
 
@@ -33,15 +36,13 @@ module.exports.Router = class {
     this.start = (await db.nearestNodes(...this.xstart))[this.rerouteRetries]
     this.end = await db.nearestNode(...this.xend)
 
-    log(o2a(this.start.geo))
-    log(o2a(this.end.geo))
-    if (!this.start || !this.end) return this.callback({
-      type: -1,
-      msg: "Could't find requested nodes"
-    })
-    log(c `{green.bold Found nearest nodes: ${this.start.id} and ${this.end.id}}`)
+    // log(o2a(this.start.geo))
+    // log(o2a(this.end.geo))
+    if (!this.start || !this.end) throw new Error('Not found node')
 
-    this.callback({
+    log(c `{green.bold Found nearest nodes: ${this.start.id} and ${this.end.id}}`);
+
+    !this.rerouteRetries && this.callback({
       type: 1
     })
 
@@ -96,7 +97,7 @@ module.exports.Router = class {
         }
       }))
     }
-    // log(nearestEndNode.dist)
+
     this.qres.push(nearestEndNode)
     log(c `{magenta.bold Routing finished. Generating path}`)
     if (this.end.id in this.parents) {
@@ -106,22 +107,21 @@ module.exports.Router = class {
       log(c `{yellow.bold End node not found, selecting nearest - {red ${Math.round(nearestEndNode.dist*1000)}m}}`)
       return this.restorePath(nearestEndNode)
     } else {
-      if (++this.rerouteRetries < 100) return this.prepare()
+      if (++this.rerouteRetries < 100) return this.run()
       log(c `{red.bold Route not found}`)
       return [];
     }
   }
 
-  qres = []
-
   restorePath(end, clean = true) {
-    let res = [],
+    let res = [this.xend],
       cur = end
 
     while (cur.id != this.start.id) {
       res.push(clean ? o2a(cur.geo) : cur)
       cur = this.parents[cur.id]
     }
+    res.push(this.xstart)
     res.reverse()
     log(c `{blue Route length: {red.bold ${res.length} nodes}}`)
     return res
@@ -129,30 +129,27 @@ module.exports.Router = class {
 }
 
 
+// setTimeout(async () => {
+//   return
 
-setTimeout(async () => {
+//   let timeStart = new Date().getTime()
 
-  // return
-  // return
+//   let q = new module.exports.Router([55.760358, 37.621166], [55.761806, 37.617456])
 
-  let timeStart = new Date().getTime()
+//   await db.getAllNodes()
 
-  let q = new module.exports.Router([55.760358, 37.621166], [55.761806, 37.617456])
+//   // log(...tileEdges(...coords2tile(55.560395, 37.414888, 15), 15))
 
-  await db.getAllNodes()
+//   let res = await q.run()
 
-  // log(...tileEdges(...coords2tile(55.560395, 37.414888, 15), 15))
+//   log(res.map(x => `${x[0]},${x[1]}`).join('\n'))
 
-  let res = await q.prepare()
+//   // log(q.qres.sort(function (a, b) {
+//   //   b.dist - a.dist
+//   // })[q.qres.length - 1])
 
-  log(res.map(x => `${x[0]},${x[1]}`).join('\n'))
+//   log(c `{magenta ${new Date().getTime() - timeStart}ms}`)
 
-  // log(q.qres.sort(function (a, b) {
-  //   b.dist - a.dist
-  // })[q.qres.length - 1])
+//   require('fs').writeFileSync('./test.dat', (await db.getNodesInRadius([55.557536, 37.422674], 2)).map(x => `${x.geo.lat},${x.geo.lon}`).join('\n'))
 
-  log(c `{magenta ${new Date().getTime() - timeStart}ms}`)
-
-  require('fs').writeFileSync('./test.dat', (await db.getNodesInRadius([55.557536, 37.422674], 2)).map(x => `${x.geo.lat},${x.geo.lon}`).join('\n'))
-
-}, 500)
+// }, 500)
