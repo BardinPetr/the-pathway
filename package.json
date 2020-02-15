@@ -9,6 +9,7 @@
   "private": true,
   "main": "src/main.js",
   "scripts": {
+    "build": "webpack --config webpack.config.js --progress",
     "start": "electron .",
     "dev": "nodemon"
   },
@@ -19,7 +20,8 @@
     "@babel/preset-env": "^7.5.5",
     "@babel/runtime": "^7.5.5",
     "babel-loader": "^8.0.6",
-    "electron": "^6.0.3",
+    "electron": "^8.0.0",
+    "electron-builder": "^22.3.2",
     "electron-hot-reload": "^0.1.4",
     "html-webpack-plugin": "^3.2.0",
     "node-loader": "^0.6.0",
@@ -33,17 +35,18 @@
     "axios": "^0.19.2",
     "chalk": "^3.0.0",
     "css-loader": "^3.4.2",
+    "cwait": "^1.1.2",
     "dotenv": "^8.2.0",
-    "electron": "^8.0.0",
-    "electron-builder": "^22.3.2",
     "electron-cli": "^0.2.8",
     "env-paths": "^2.2.0",
+    "jquery": "^3.4.1",
     "js-priority-queue": "^0.1.5",
     "jsonfile": "^5.0.0",
     "moment": "^2.24.0",
     "nedb": "^1.8.0",
     "nedb-promises": "^4.0.1",
-    "osm-read": "^0.7.0"
+    "osm-read": "^0.7.0",
+    "toastr": "^2.1.4"
   },
   "nodemonConfig": {
     "delay": "4000",

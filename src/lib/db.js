@@ -24,7 +24,17 @@ miscDB.count({
   tiles: []
 }))
 
-const insertRoutes = x => Promise.all(Object.values(x).map(r => routesDB.insert(r).catch(() => {})))
+const insertRoutes = x => Promise.all(Object.values(x).map(r => routesDB.insert(r).catch(() => {
+  routesDB.update({
+    id: x.id
+  }, {
+    $addToSet: {
+      adj: {
+        $each: x.adj
+      }
+    }
+  })
+})))
 
 const getNode = id => routesDB.findOne({
   id

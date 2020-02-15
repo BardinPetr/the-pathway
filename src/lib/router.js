@@ -2,6 +2,7 @@
 
 const PriorityQueue = require('js-priority-queue'),
   {
+    routeLen,
     dist,
     o2a
   } = require('./utils.js'),
@@ -16,6 +17,7 @@ const PriorityQueue = require('js-priority-queue'),
 module.exports.Router = class {
   rerouteRetries = 0
   qres = []
+  resRoutes = []
 
   constructor(start, end, callback) {
     this.callback = callback || (() => {})
@@ -64,7 +66,7 @@ module.exports.Router = class {
 
   async route() {
     log(c `{yellow.bold Routing started}`)
-    let ttl = 10000000
+    let ttl = 10e100
     let nearestEndNode = {
       dist: 10e10
     }
@@ -91,7 +93,7 @@ module.exports.Router = class {
           this.queue.queue({
             id: next.id,
             geo: next.geo,
-            p: newCost + dist(o2a(next.geo), o2a(this.end.geo))
+            p: newCost + dist(o2a(next.geo), this.xend)
           })
           this.parents[next.id] = cur
         }
@@ -102,14 +104,31 @@ module.exports.Router = class {
     log(c `{magenta.bold Routing finished. Generating path}`)
     if (this.end.id in this.parents) {
       log(c `{green.bold Successfully found end node}`)
+      // self.resRoutes.push({
+      //   res: this.restorePath(this.end),
+      //   dist: 0
+      // })
+      // if (++this.rerouteRetries < 100) this.run() 
       return this.restorePath(this.end)
     } else if (nearestEndNode.dist < 0.1) {
       log(c `{yellow.bold End node not found, selecting nearest - {red ${Math.round(nearestEndNode.dist*1000)}m}}`)
       return this.restorePath(nearestEndNode)
+      // self.resRoutes.push({
+      //   res: this.restorePath(nearestEndNode),
+      //   dist: nearestEndNode.dist
+      // })
+      // if (++this.rerouteRetries < 100) this.run()
     } else {
       if (++this.rerouteRetries < 100) return this.run()
       log(c `{red.bold Route not found}`)
       return [];
+      // self.resRoutes = self.resRoutes.sort((a, b) => routeLen(a.res) - routeLen(b.res))
+      // log(self.resRoutes)
+      // if (self.resRoutes.length === 0 || self.resRoutes) {
+      //   log(c `{red.bold Route not found}`)
+      //   return [];
+      // }
+      // return self.resRoutes[0].res;
     }
   }
 

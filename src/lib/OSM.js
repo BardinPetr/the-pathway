@@ -48,15 +48,13 @@ const loadTileRel = async (x, y) => {
           way: function (v) {
             if (v.tags.highway && util.carAvailableTypes.includes(v.tags.highway.replace('_link', ''))) {
               util.sliding_window(v.nodeRefs, 2).map(w => {
-                if (!res[w[0]]) res[w[0]] = nodes[w[0]]
-                res[w[0]].adj.push(w[1])
-                if (v.tags.oneway === 'yes') {
+                if (!v.tags.oneway) {
                   if (!res[w[1]]) res[w[1]] = nodes[w[1]]
                   res[w[1]].adj.push(w[0])
                 }
+                if (!res[w[0]]) res[w[0]] = nodes[w[0]]
+                res[w[0]].adj.push(w[1])
               })
-            } else {
-              v.nodeRefs.map(w => delete res[w])
             }
           },
         })
@@ -105,8 +103,8 @@ const preloadArea = async (start, end) => {
 
   let [x0, y0] = util.coords2tile(...start, util.baseZoom)
   let [x1, y1] = util.coords2tile(...end, util.baseZoom)
-  proms.push(...dirs.map(async dir => await loadTileRel(x0 + dir[0], y0 + dir[1])))
-  proms.push(...dirs.map(async dir => await loadTileRel(x1 + dir[0], y1 + dir[1])))
+  // proms.push(...dirs.map(async dir => await loadTileRel(x0 + dir[0], y0 + dir[1])))
+  // proms.push(...dirs.map(async dir => await loadTileRel(x1 + dir[0], y1 + dir[1])))
 
   await Promise.all(proms)
   log(c `{magenta Preloading tiles finished --- Took ${new Date().getTime() - timeStart}ms}`)

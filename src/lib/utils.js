@@ -43,5 +43,7 @@ module.exports = {
   tileURL: (x, y) => {
     let edges = module.exports.tileEdges(x, y, module.exports.baseZoom)
     return `http://api.openstreetmap.org/api/0.6/map?bbox=${[...edges[0].reverse(), ...edges[1].reverse()]}`
-  }
+  },
+
+  routeLen: path => module.exports.sliding_window(path, 2).reduce((p, c) => p + module.exports.dist(c[0], c[1]))
 }

@@ -11,9 +11,9 @@ const {
   } = require('./lib/OSM.js')
 
 require('dotenv').config()
-app.MAPBOX_TOKEN = process.env.ACCESS_TOKEN
 
 let mainWindow
+
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -26,21 +26,19 @@ function createWindow() {
     }
   })
 
-  mainWindow.loadFile(`${__dirname.replace('src', '')}src/front/index.html`)
+  mainWindow.loadFile(`${__dirname.replace('src', '')}dist/index.html`)
 
-  mainWindow.webContents.openDevTools()
+  // mainWindow.webContents.openDevTools()
 
   mainWindow.on('ready-to-show', () => {
     mainWindow.show()
     mainWindow.maximize()
-    setTimeout(() => mainWindow.minimize(), 500)
-
+    // setTimeout(() => mainWindow.minimize(), 500)
   });
   mainWindow.on('closed', () => mainWindow = null)
 
   ipcMain.on('route:request', (event, data) => {
-    log(data)
-    log(c `{yellow.bold Got route:request for }`)
+    log(c `{yellow.bold Got route:request for ${data}}`)
     let router = new Router(...data, x => event.reply('route:update', x))
     router.run().then(res => event.reply('route:result', res)).catch(x => event.reply('route:failed', x))
   })
